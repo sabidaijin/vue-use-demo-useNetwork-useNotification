@@ -1,6 +1,10 @@
 <template>
   <div class="p-6 font-sans">
     <h1 class="text-2xl font-bold mb-4">📡 useNetwork デモ & ドキュメント</h1>
+    <p>ネットワーク状態に関する情報をリアルタイムで取得・監視します。</p>
+    <p class="mb-4">動作確認には、ブラウザのデベロッパーツールを使用してください。</p>
+    <p>ネットワークのオンオフや通信速度の変更を行うことで、各情報がどのように変化するか確認できます。</p>
+    <p class="mb-4">開発者ツールの使い方は<a href="https://developer.chrome.com/docs/devtools/network?hl=ja#throttle" target="_blank" class="text-blue-600 underline">こちら</a>。</p>
     <div class="grid grid-cols-1 gap-4">
       <div
         v-for="item in networkInfo"
@@ -17,7 +21,7 @@
         <p class="text-sm text-gray-600 mt-1">
 説明:          {{ item.description }}
 </p>
-<a class="text-sm text-gray-600 mt-1" :href="item.mdn" target="_blank">MDNドキュメントはこちら</a>
+<a class="text-sm text-blue-600 mt-1 underline" :href="item.mdn" target="_blank">MDNドキュメントはこちら</a>
       </div>
     </div>
   </div>
@@ -67,7 +71,7 @@ const networkInfo = [
   {
     key: "offlineAt",
     label: "offlineAt（オフラインになった時刻）",
-    value: offlineAt?.toLocaleString(),
+    value: offlineAt,
     source: "window 'offline' イベント",
     description: "ブラウザがオフラインになったタイミングのタイムスタンプです。",
     mdn: "https://developer.mozilla.org/en-US/docs/Web/API/Window/offline_event",
@@ -75,7 +79,7 @@ const networkInfo = [
   {
     key: "onlineAt",
     label: "onlineAt（オンラインになった時刻）",
-    value: onlineAt?.toLocaleString(),
+    value: onlineAt,
     source: "window 'online' イベント",
     description: "ブラウザがオンラインになったタイミングのタイムスタンプです。",
     mdn: "https://developer.mozilla.org/en-US/docs/Web/API/Window/online_event",

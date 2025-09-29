@@ -1,36 +1,49 @@
 <template>
   <div class="p-6 font-sans">
     <h1 class="text-2xl font-bold mb-4">🔔 useWebNotification デモ</h1>
-<div v-if="currentNotification?.title !== 'デフォルト'" class="p-4 border rounded bg-gray-50 mt-4">
-  <h2 class="text-lg font-semibold mb-2">📤 通知内容（画面表示）</h2>
-  <p><strong>タイトル:</strong> {{ currentNotification?.title }}</p>
-  <p><strong>本文:</strong> {{ currentNotification?.body }}</p>
-</div>
+<p>Web Notification API を使って、ブラウザ通知を表示します。</p>
+<p class="mb-4">動作確認には、ブラウザの通知許可を「許可」にしてください。</p>
+<p class="mb-4">通知がポップアップしない場合、OSやブラウザの設定で通知がブロックされている可能性があります。</p>
+    <!-- 状態メッセージ -->
 
-    <button
-      @click="handleNotify"
-      :disabled="!permissionGranted"
-      class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 mb-4"
-    >
-      通知を送信
-    </button>
+    <div class="mb-4 text-sm">
+      <p v-if="!supported" class="text-red-600 font-semibold">
+        このブラウザは Notification API をサポートしていません。
+      </p>
+      <p v-else-if="!granted" class="text-orange-600">
+        通知を出すには許可が必要です。「通知許可を確認・要求」を押してください。
+      </p>
+      <p v-else class="text-green-700">通知の準備OKです。</p>
+    </div>
 
-    <button
-      @click="close"
-      :disabled="!notification"
-      class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 mb-4 ml-2"
-    >
-      通知を閉じる
-    </button>
+    <div class="flex flex-wrap gap-2 mb-6">
+      <button
+        @click="handleNotify"
+        :disabled="!supported || !granted"
+        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+      >
+        通知を送信(handleNotify method)
+      </button>
 
-    <button
-      @click="ensurePermissions"
-      class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 mb-4 ml-2"
-    >
-      通知許可を確認・要求
-    </button>
+      <button
+        @click="close"
+        :disabled="!supported || !granted"
+        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+      >
+        通知を閉じる(close method)
+      </button>
+       </div>
 
-    <div class="grid grid-cols-1 gap-4">
+    <!-- 画面側プレビュー -->
+    <div v-if="currentNotification && currentNotification.title !== 'デフォルト'"
+         class="p-4 border rounded bg-gray-50 mt-4">
+      <h2 class="text-lg font-semibold mb-2">📤 通知内容（画面表示）</h2>
+      <p><strong>タイトル:</strong> {{ currentNotification.title }}</p>
+      <p><strong>本文:</strong> {{ currentNotification.body }}</p>
+    </div>
+
+    <!-- 状態一覧 -->
+    <div class="grid grid-cols-1 gap-4 mt-6">
       <div
         v-for="item in notificationInfo"
         :key="item.key"
@@ -46,22 +59,20 @@
         <p class="text-sm text-gray-600 mt-1">
           説明: {{ item.description }}
         </p>
-<a class="text-sm text-gray-600 mt-1" :href="item.mdn" target="_blank">MDNドキュメントはこちら</a>
-</div>
-  </div>
+        <a class="text-sm text-blue-600 mt-1 underline" :href="item.mdn" target="_blank" rel="noreferrer">
+          MDNドキュメントはこちら
+        </a>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useWebNotification } from "@vueuse/core";
 
-const showCalled = ref(false);
-const clicked = ref(false);
-const closed = ref(false);
-const errored = ref(false);
-const shown = ref(false);
 const currentNotification = ref<Notification | null>(null);
+
 const {
   isSupported,
   notification,
@@ -79,36 +90,53 @@ const {
   icon: "https://vueuse.org/favicon.svg",
 });
 
-async function handleNotify  () {
-  currentNotification.value=await show({
-  title: "通知",
-  body: "これは VueUse の通知です。",
-  icon: "https://vueuse.org/favicon.svg",
-}) as Notification;
-  showCalled.value = true;
+// Permission/UI 状態をリアクティブに使いやすく
+const supported = computed(() => isSupported.value);
+const granted = computed(() => permissionGranted.value);
+const hasNotification = computed(() => !!notification.value);
+
+// 初回は権限が未許可なら促す（自動でダイアログ出すのが嫌ならコメントアウト）
+onMounted(async () => {
+  if (supported.value && Notification.permission === "default") {
+    await ensurePermissions();
+  }
+});
+
+async function handleNotify() {
+  // ここで毎回タイトル/本文を指定すると画面プレビューもしやすい
+  const n = await show({
+    title: "通知",
+    body: "これは VueUse の通知です。",
+    icon: "https://vueuse.org/favicon.svg",
+  });
+  if (n) {
+    currentNotification.value = n as Notification;
+    showCalled.value = true;
+  }
 }
 
 onClick(() => {
-  clicked.value = true;
+  window.alert("通知がクリックされました！");
 });
 
 onClose(() => {
-  closed.value = true;
+  window.alert("通知が閉じられました！");
 });
 
 onError(() => {
-  errored.value = true;
+  window.alert("通知の表示に失敗しました。");
 });
 
 onShow(() => {
-  shown.value = true;
+  window.alert("通知が表示されました。");
 });
 
+// 表示用の状態テーブル（Refをそのまま入れず、booleanに評価してから）
 const notificationInfo = [
   {
     key: "isSupported",
     label: "isSupported（通知API対応状況）",
-    value: isSupported,
+    value: supported.value,
     source: "typeof window !== 'undefined' && 'Notification' in window",
     description: "ブラウザが Notification API に対応しているかどうかを判定します。",
     mdn: "https://developer.mozilla.org/en-US/docs/Web/API/Notification",
@@ -116,31 +144,15 @@ const notificationInfo = [
   {
     key: "permissionGranted",
     label: "permissionGranted（通知許可状態）",
-    value: permissionGranted,
+    value: granted.value,
     source: "Notification.permission === 'granted'",
     description: "ユーザーが通知の表示を許可しているかどうかを示します。",
     mdn: "https://developer.mozilla.org/en-US/docs/Web/API/Notification/permission",
   },
   {
-    key: "notification",
-    label: "notification（通知インスタンス）",
-    value: !!notification.value,
-    source: "new Notification(...) によって生成されたインスタンスを保持",
-    description: "現在表示されている Notification オブジェクトです。",
-    mdn: "https://developer.mozilla.org/en-US/docs/Web/API/Notification",
-  },
-  {
-    key: "showCalled",
-    label: "show（通知表示）",
-    value: showCalled.value,
-    source: "内部で new Notification(options.title, options) を呼び出す",
-    description: "通知を表示する関数。クリックで呼び出されます。",
-    mdn: "https://developer.mozilla.org/en-US/docs/Web/API/Notification/Notification",
-  },
-  {
     key: "clicked",
     label: "onClick（通知クリック）",
-    value: clicked.value,
+    value: "NA",
     source: "notification.onclick にイベントリスナーを登録",
     description: "通知がクリックされたときに発火するイベントです。",
     mdn: "https://developer.mozilla.org/en-US/docs/Web/API/Notification/onclick",
@@ -148,7 +160,7 @@ const notificationInfo = [
   {
     key: "closed",
     label: "onClose（通知閉じる）",
-    value: closed.value,
+    value: "NA",
     source: "notification.onclose にイベントリスナーを登録",
     description: "通知が閉じられたときに発火するイベントです。",
     mdn: "https://developer.mozilla.org/en-US/docs/Web/API/Notification/onclose",
@@ -156,7 +168,7 @@ const notificationInfo = [
   {
     key: "errored",
     label: "onError（通知エラー）",
-    value: errored.value,
+    value: "NA",
     source: "notification.onerror にイベントリスナーを登録",
     description: "通知の表示に失敗したときに発火するイベントです。",
     mdn: "https://developer.mozilla.org/en-US/docs/Web/API/Notification/onerror",
@@ -164,21 +176,18 @@ const notificationInfo = [
   {
     key: "shown",
     label: "onShow（通知表示完了）",
-    value: shown.value,
+    value: "NA",
     source: "notification.onshow にイベントリスナーを登録",
     description: "通知が表示されたときに発火するイベントです。",
     mdn: "https://developer.mozilla.org/en-US/docs/Web/API/Notification/onshow",
   },
-];
+]
 
-function highlight(value: any) {
-  return value ? "text-green-600 font-bold" : "text-gray-700";
+function highlight(ok: boolean) {
+  return ok ? "text-green-600 font-bold" : "text-gray-700";
 }
 </script>
 
-
 <style>
-body {
-  font-family: sans-serif;
-}
+body { font-family: sans-serif; }
 </style>
